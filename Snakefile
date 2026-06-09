@@ -51,6 +51,18 @@ rule download_fastq:
         r1="data/raw/{sample}_1.fastq.gz",
         r2="data/raw/{sample}_2.fastq.gz"
 
+    conda:
+        "envs/sra.yaml"
+
+    shell:
+        """
+        fasterq-dump {wildcards.sample} \
+            -O data/raw \
+            --split-files
+
+        gzip data/raw/{wildcards.sample}_1.fastq
+        gzip data/raw/{wildcards.sample}_2.fastq
+        """
 #########################################
 # QC
 #########################################
