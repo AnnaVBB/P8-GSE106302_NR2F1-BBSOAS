@@ -1,0 +1,30 @@
+# Dataset selecionado
+dataset: "GSE106302"
+# Metadados
+metadata:
+title: "Nr2f1 and BBSOAS syndrom"
+organism: "mus musculus"
+tissue: hippocampus
+description: "RNA-seq of Nr2f1+/-"
+pmid: "31600777"
+SRA: SRP204099
+
+# URLs do genoma 
+genome:
+  fasta:"https://ftp.ensembl.org/pub/release-116/fasta/mus_musculus/cdna/Mus_musculus.GRCm39.cdna.all.fa.gz
+"
+  gtf:"https://ftp.ensembl.org/pub/release-116/mus_musculus/Mus_musculus.GRCm39.115.gtf.gz"
+
+# Design experimental
+design: "~ genotype"
+contrasts:
+- ["wild-type", "Nr2f1+/-"]
+
+# Recursos (mudar)
+resources:
+salmon:
+mem: "8G"
+time: "02:00:00"
+deseq2:
+mem: "16G"
+time: "04:00:00"
