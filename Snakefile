@@ -25,8 +25,23 @@ rule all:
 rule salmon_index:
     input:
         "reference/transcriptome.fa"
+
     output:
         directory("reference/salmon_index")
+
+    conda:
+        "envs/salmon.yaml"
+
+    threads:
+        config["resources"]["salmon"]["threads"]
+
+    shell:
+        """
+        salmon index \
+            -t {input} \
+            -i {output} \
+            -p {threads}
+        """
 
 #########################################
 # DADOS BRUTOS
