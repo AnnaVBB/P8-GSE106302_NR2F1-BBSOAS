@@ -1,0 +1,28 @@
+# FASTQ
+data/raw/*.fastq
+data/raw/*.fastq.gz
+data/raw/*.fq
+data/raw/*.fq.gz
+
+#Pasta de referencias 
+reference/ 
+
+# Salmon index
+reference/salmon_index/
+
+# Snakemake
+.snakemake/
+
+# Conda
+.conda/
+
+# Logs temporários
+*.log
+
+# Arquivos grandes
+*.bam
+*.sam
+*.cram
+
+# Sistema
+.DS_Store
