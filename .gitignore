@@ -5,7 +5,8 @@ data/raw/*.fq
 data/raw/*.fq.gz
 
 #Pasta de referencias 
-reference/ 
+reference/transcriptome.fa
+reference/annotation.gtf
 
 # Salmon index
 reference/salmon_index/
