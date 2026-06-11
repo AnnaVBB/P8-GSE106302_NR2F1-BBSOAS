@@ -16,10 +16,9 @@ SAMPLES = samples["sample_id"].tolist()
 #########################################
 rule all:
     input:
-        expand("results/fastqc/{sample}_1_fastqc.html", sample=SAMPLES),
-        expand("results/fastqc/{sample}_2_fastqc.html", sample=SAMPLES)
-
-
+        "results/fastqc/multiqc_report.html",
+        expand("results/fastqc/trimmed/{sample}_1_trimmed.fastq.gz", sample=SAMPLES),
+        expand("results/fastqc/trimmed/{sample}_2_trimmed.fastq.gz", sample=SAMPLES)
 #########################################
 # REFERÊNCIA
 #########################################
@@ -80,16 +79,42 @@ rule fastqc_raw:
 
 ##########################################
 rule fastp:
+    input:
+        r1="data/raw/{sample}_1.fastq.gz",
+        r2="data/raw/{sample}_2.fastq.gz"
     output:
-        "results/fastqc/trim_complete.txt"
+        r1="results/fastqc/trimmed/{sample}_1_trimmed.fastq.gz",
+        r2="results/fastqc/trimmed/{sample}_2_trimmed.fastq.gz",
+        json="results/fastqc/trimmed/{sample}_fastp.json",
+        html="results/fastqc/trimmed/{sample}_fastp.html"
+    conda:
+        "envs/fastp.yaml"
+    threads: 4
+    shell:
+        """
+        fastp -i {input.r1} -I {input.r2} \
+              -o {output.r1} -O {output.r2} \
+              -j {output.json} -h {output.html} \
+              --thread {threads} --detect_adapter_for_pe
+        """
 
+##########################################
 rule fastqc_trimmed:
     output:
         "results/fastqc/post_trim_complete.txt"
-
+################################################
 rule multiqc:
+    input:
+        expand("results/fastqc/{sample}_1_fastqc.html", sample=SAMPLES),
+        expand("results/fastqc/{sample}_2_fastqc.html", sample=SAMPLES)
     output:
-        "results/fastqc/multiqc_complete.txt"
+        "results/fastqc/multiqc_report.html"
+    conda:
+        "envs/multiqc.yaml"
+    shell:
+        "multiqc results/fastqc/ -o results/fastqc/ -n multiqc_report.html"
+
+
 
 #########################################
 # QUANTIFICAÇÃO
