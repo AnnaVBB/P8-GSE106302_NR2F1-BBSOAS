@@ -23,7 +23,7 @@ rule all:
         expand("results/salmon/{sample}/quant.sf", sample=SAMPLES),
         # Análise estatística e tabelas de expressão
         "results/deseq2/tximport_complete.txt",
-        "results/deseq2/DEG_results.csv"
+        "results/deseq2/DEG_results.csv",
 	# Enriquecimento funcional
         "results/enrichment/GO_results.csv",
         "results/enrichment/KEGG_results.csv",
@@ -92,7 +92,7 @@ rule fastqc_raw:
     shell:
         "fastqc -t {threads} -o results/fastqc/ {input.r1} {input.r2}"
 
-##########################################
+###################################
 rule fastp:
     input:
         r1="data/raw/{sample}_1.fastq.gz",
@@ -140,7 +140,7 @@ rule multiqc:
         "envs/multiqc.yaml"
     shell:
         "multiqc results/fastqc/ -o results/fastqc/ -n multiqc_report.html"
-############################################################################
+##################################################################
 rule multiqc_trimmed:
     input:
         expand("results/fastqc/trimmed/{sample}_1_trimmed_fastqc.html", sample=SAMPLES),
@@ -161,8 +161,7 @@ rule salmon_quant:
         index="reference/salmon_index",
         r1="results/fastqc/trimmed/{sample}_1_trimmed.fastq.gz",
         r2="results/fastqc/trimmed/{sample}_2_trimmed.fastq.gz"
-    output:
-       
+    output:       
         sf="results/salmon/{sample}/quant.sf",
         dir=directory("results/salmon/{sample}")
     conda:
