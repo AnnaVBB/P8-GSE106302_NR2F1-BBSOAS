@@ -3,4 +3,4 @@ channels:
   - conda-forge
 
 dependencies:
-  - sra-tools
+  - sra-tools=3.1.1
