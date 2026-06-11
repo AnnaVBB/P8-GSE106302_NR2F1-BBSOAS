@@ -16,8 +16,14 @@ SAMPLES = samples["sample_id"].tolist()
 #########################################
 rule all:
     input:
-        expand("data/raw/{sample}_1.fastq.gz", sample=SAMPLES),
-        expand("data/raw/{sample}_2.fastq.gz", sample=SAMPLES),
+        expand(
+            "results/fastqc/raw/{sample}_1_fastqc.html",
+            sample=SAMPLES
+        ),
+        expand(
+            "results/fastqc/raw/{sample}_2_fastqc.html",
+            sample=SAMPLES
+        ),
         "results/enrichment/GO_results.csv",
         "results/enrichment/KEGG_results.csv"
 
@@ -65,8 +71,26 @@ rule download_fastq:
 # QC
 #########################################
 rule fastqc_raw:
+    input:
+        r1="data/raw/{sample}_1.fastq.gz",
+        r2="data/raw/{sample}_2.fastq.gz"
+
     output:
-        "results/fastqc/raw_complete.txt"
+        html1="results/fastqc/raw/{sample}_1_fastqc.html",
+        zip1="results/fastqc/raw/{sample}_1_fastqc.zip",
+        html2="results/fastqc/raw/{sample}_2_fastqc.html",
+        zip2="results/fastqc/raw/{sample}_2_fastqc.zip"
+
+    conda:
+        "envs/fastqc.yaml"
+
+    shell:
+        """
+        fastqc \
+            {input.r1} \
+            {input.r2} \
+            -o results/fastqc/raw
+        """
 
 rule fastp:
     output:
