@@ -17,8 +17,11 @@ SAMPLES = samples["sample_id"].tolist()
 rule all:
     input:
         "results/fastqc/multiqc_report.html",
-        expand("results/fastqc/trimmed/{sample}_1_trimmed.fastq.gz", sample=SAMPLES),
-        expand("results/fastqc/trimmed/{sample}_2_trimmed.fastq.gz", sample=SAMPLES)
+        "results/fastqc/trimmed/multiqc_trimmed_report.html",
+        expand("results/salmon/{sample}/quant.sf", sample=SAMPLES),
+	"results/deseq2/tximport_complete.txt"
+
+
 #########################################
 # REFERÊNCIA
 #########################################
@@ -100,8 +103,20 @@ rule fastp:
 
 ##########################################
 rule fastqc_trimmed:
+    input:
+        r1="results/fastqc/trimmed/{sample}_1_trimmed.fastq.gz",
+        r2="results/fastqc/trimmed/{sample}_2_trimmed.fastq.gz"
     output:
-        "results/fastqc/post_trim_complete.txt"
+        html1="results/fastqc/trimmed/{sample}_1_trimmed_fastqc.html",
+        html2="results/fastqc/trimmed/{sample}_2_trimmed_fastqc.html",
+        zip1="results/fastqc/trimmed/{sample}_1_trimmed_fastqc.zip",
+        zip2="results/fastqc/trimmed/{sample}_2_trimmed_fastqc.zip"
+    conda:
+        "envs/fastqc.yaml"  # Reutiliza o mesmo ambiente que você já criou para o FastQC!
+    threads: 2
+    shell:
+        "fastqc -t {threads} -o results/fastqc/trimmed/ {input.r1} {input.r2}"
+
 ################################################
 rule multiqc:
     input:
@@ -113,22 +128,61 @@ rule multiqc:
         "envs/multiqc.yaml"
     shell:
         "multiqc results/fastqc/ -o results/fastqc/ -n multiqc_report.html"
-
+############################################################################
+rule multiqc_trimmed:
+    input:
+        expand("results/fastqc/trimmed/{sample}_1_trimmed_fastqc.html", sample=SAMPLES),
+        expand("results/fastqc/trimmed/{sample}_2_trimmed_fastqc.html", sample=SAMPLES)
+    output:
+        "results/fastqc/trimmed/multiqc_trimmed_report.html"
+    conda:
+        "envs/multiqc.yaml"  # Reutiliza o ambiente do MultiQC!
+    shell:
+        "multiqc results/fastqc/trimmed/ -o results/fastqc/trimmed/ -n multiqc_trimmed_report.html"
 
 
 #########################################
 # QUANTIFICAÇÃO
 #########################################
 rule salmon_quant:
+    input:
+        # Precisa do índice gerado anteriormente e dos FASTQs limpos pelo fastp
+        index="reference/salmon_index",
+        r1="results/fastqc/trimmed/{sample}_1_trimmed.fastq.gz",
+        r2="results/fastqc/trimmed/{sample}_2_trimmed.fastq.gz"
     output:
-        "results/salmon/quant_complete.txt"
+        # O Salmon cria uma pasta para cada amostra contendo o arquivo quant.sf
+        sf="results/salmon/{sample}/quant.sf",
+        dir=directory("results/salmon/{sample}")
+    conda:
+        "envs/salmon.yaml" # Reutiliza o ambiente do Salmon que já criamos!
+    threads: 6  # O Salmon escala muito bem. Vamos usar 6 núcleos do servidor
+    shell:
+        """
+        salmon quant -i {input.index} -l A \
+            -1 {input.r1} -2 {input.r2} \
+            -p {threads} --validateMappings \
+            -o {output.dir}
+        """
 
 #########################################
 # ANÁLISE ESTATÍSTICA
 #########################################
 rule tximport:
+    input:
+        # Precisa dos arquivos de contagem do Salmon e da tabela de conversão
+        sf=expand("results/salmon/{sample}/quant.sf", sample=SAMPLES),
+        tx2gene="reference/tx2gene.csv",
+        samples="samples.tsv"
     output:
-        "results/deseq2/tximport_complete.txt"
+        # Gerará um arquivo de texto de controle e os dados salvos em formato R
+        txt="results/deseq2/tximport_complete.txt",
+        rds="results/deseq2/txi.rds"
+    conda:
+        "envs/rnaseq.yaml"  
+    script:
+        "scripts/tximport.R"  
+
 
 rule deseq2:
     output:
