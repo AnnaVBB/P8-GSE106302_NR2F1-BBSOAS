@@ -17,6 +17,7 @@ dependencies:
   - bioconductor-biomart=2.66.1
   - bioconductor-biostrings=2.78.0
   - bioconductor-cigarillo=1.0.0
+  - bioconductor-clusterprofiler
   - bioconductor-delayedarray=0.36.0
   - bioconductor-deseq2
   - bioconductor-genomeinfodb=1.46.2
@@ -26,6 +27,7 @@ dependencies:
   - bioconductor-iranges=2.44.0
   - bioconductor-keggrest=1.50.0
   - bioconductor-matrixgenerics=1.22.0
+  - bioconductor-org.mm.eg.db
   - bioconductor-rhtslib=3.6.0
   - bioconductor-rsamtools=2.26.0
   - bioconductor-rtracklayer=1.70.1

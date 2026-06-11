@@ -200,6 +200,12 @@ rule deseq2:
 # ENRIQUECIMENTO
 #########################################
 rule enrichment:
+    input:
+        csv="results/deseq2/DEG_results.csv"
     output:
-        "results/enrichment/GO_results.csv",
-        "results/enrichment/KEGG_results.csv"
+        go="results/enrichment/GO_results.csv",
+        kegg="results/enrichment/KEGG_results.csv"
+    conda:
+        "envs/rnaseq.yaml"
+    script:
+        "scripts/enrichment.R"
