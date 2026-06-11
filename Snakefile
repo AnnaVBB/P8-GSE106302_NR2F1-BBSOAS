@@ -16,6 +16,8 @@ SAMPLES = samples["sample_id"].tolist()
 #########################################
 rule all:
     input:
+        expand("data/raw/{sample}_1.fastq.gz", sample=SAMPLES),
+        expand("data/raw/{sample}_2.fastq.gz", sample=SAMPLES),
         "results/enrichment/GO_results.csv",
         "results/enrichment/KEGG_results.csv"
 
@@ -25,16 +27,12 @@ rule all:
 rule salmon_index:
     input:
         "reference/transcriptome.fa"
-
     output:
         directory("reference/salmon_index")
-
     conda:
         "envs/salmon.yaml"
-
     threads:
         config["resources"]["salmon"]["threads"]
-
     shell:
         """
         salmon index \
