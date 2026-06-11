@@ -19,10 +19,11 @@ rule all:
         "results/fastqc/multiqc_report.html",
         "results/fastqc/trimmed/multiqc_trimmed_report.html",
         expand("results/salmon/{sample}/quant.sf", sample=SAMPLES),
-	"results/deseq2/tximport_complete.txt"
+        
+        "results/deseq2/tximport_complete.txt",
+        "results/deseq2/DEG_results.csv"
 
-
-#########################################
+########################################
 # REFERÊNCIA
 #########################################
 rule salmon_index:
@@ -182,11 +183,18 @@ rule tximport:
         "envs/rnaseq.yaml"  
     script:
         "scripts/tximport.R"  
-
-
+###############################################
 rule deseq2:
+    input:
+        rds="results/deseq2/txi.rds",
+        samples="samples.tsv"
     output:
-        "results/deseq2/DEG_results.csv"
+        # Tabela final contendo os genes, p-valores e log2FoldChange
+        csv="results/deseq2/DEG_results.csv"
+    conda:
+        "envs/rnaseq.yaml"
+    script:
+        "scripts/deseq2.R"
 
 #########################################
 # ENRIQUECIMENTO

@@ -18,6 +18,7 @@ dependencies:
   - bioconductor-biostrings=2.78.0
   - bioconductor-cigarillo=1.0.0
   - bioconductor-delayedarray=0.36.0
+  - bioconductor-deseq2
   - bioconductor-genomeinfodb=1.46.2
   - bioconductor-genomicalignments=1.46.0
   - bioconductor-genomicfeatures=1.62.0
@@ -34,6 +35,7 @@ dependencies:
   - bioconductor-sparsearray=1.10.8
   - bioconductor-summarizedexperiment=1.40.0
   - bioconductor-txdbmaker=1.6.2
+  - bioconductor-tximport
   - bioconductor-ucsc.utils=1.6.1
   - bioconductor-xvector=0.50.0
   - bwidget=1.10.1
@@ -157,6 +159,7 @@ dependencies:
   - r-r6=2.6.1
   - r-rappdirs=0.3.4
   - r-rcurl=1.98_1.19
+  - r-readr
   - r-restfulr=0.0.16
   - r-rjson=0.2.23
   - r-rlang=1.2.0
