@@ -16,12 +16,23 @@ SAMPLES = samples["sample_id"].tolist()
 #########################################
 rule all:
     input:
+	# Execução do QC inicial e final
         "results/fastqc/multiqc_report.html",
         "results/fastqc/trimmed/multiqc_trimmed_report.html",
+	# Quantificação
         expand("results/salmon/{sample}/quant.sf", sample=SAMPLES),
-        
+        # Análise estatística e tabelas de expressão
         "results/deseq2/tximport_complete.txt",
         "results/deseq2/DEG_results.csv"
+	# Enriquecimento funcional
+        "results/enrichment/GO_results.csv",
+        "results/enrichment/KEGG_results.csv",
+        # Gráficos e relatório final
+        "results/plots/PCA_plot.png",
+        "results/plots/volcano_plot.png",
+        "results/plots/heatmap_DEG.png",
+        "results/plots/MA_plot.png",
+        "results/plots/RELATORIO_FINAL.html"
 
 ########################################
 # REFERÊNCIA
@@ -147,17 +158,16 @@ rule multiqc_trimmed:
 #########################################
 rule salmon_quant:
     input:
-        # Precisa do índice gerado anteriormente e dos FASTQs limpos pelo fastp
         index="reference/salmon_index",
         r1="results/fastqc/trimmed/{sample}_1_trimmed.fastq.gz",
         r2="results/fastqc/trimmed/{sample}_2_trimmed.fastq.gz"
     output:
-        # O Salmon cria uma pasta para cada amostra contendo o arquivo quant.sf
+       
         sf="results/salmon/{sample}/quant.sf",
         dir=directory("results/salmon/{sample}")
     conda:
-        "envs/salmon.yaml" # Reutiliza o ambiente do Salmon que já criamos!
-    threads: 6  # O Salmon escala muito bem. Vamos usar 6 núcleos do servidor
+        "envs/salmon.yaml" 
+    threads: 6 
     shell:
         """
         salmon quant -i {input.index} -l A \
@@ -171,12 +181,10 @@ rule salmon_quant:
 #########################################
 rule tximport:
     input:
-        # Precisa dos arquivos de contagem do Salmon e da tabela de conversão
         sf=expand("results/salmon/{sample}/quant.sf", sample=SAMPLES),
         tx2gene="reference/tx2gene.csv",
         samples="samples.tsv"
     output:
-        # Gerará um arquivo de texto de controle e os dados salvos em formato R
         txt="results/deseq2/tximport_complete.txt",
         rds="results/deseq2/txi.rds"
     conda:
@@ -195,6 +203,24 @@ rule deseq2:
         "envs/rnaseq.yaml"
     script:
         "scripts/deseq2.R"
+
+#########################################
+# VISUALIZAÇÕES (PCA, VOLCANO, HEATMAP, MA)
+#########################################
+rule generate_plots:
+    input:
+        csv="results/deseq2/DEG_results.csv",
+        dds="results/deseq2/dds_object.rds"
+    output:
+        pca="results/plots/PCA_plot.png",
+        volcano="results/plots/volcano_plot.png",
+        heatmap="results/plots/heatmap_DEG.png",
+        ma="results/plots/MA_plot.png",
+        html="results/plots/RELATORIO_FINAL.html"
+    conda:
+        "envs/rnaseq.yaml"
+    script:
+        "scripts/generate_plots.R"
 
 #########################################
 # ENRIQUECIMENTO
