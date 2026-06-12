@@ -1,0 +1,137 @@
+---
+title: "Relatório Científico: Análise de RNA-seq Nr2f1/BBSOAS (GSE106302)"
+author: "Anna Virgínia Bertelle"
+date: "`r Sys.Date(06.2026)`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: united
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk\$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(DESeq2)
+library(ggplot2)
+library(pheatmap)
+library(clusterProfiler)
+library(org.Mm.eg.db)
+```
+
+## 1. Introdução
+
+A Síndrome de Bosch-Boonstra-Schaaf (BBSOAS) é uma desordem neurodesenvolvimental autossômica dominante rara, caracterizada por atraso global no desenvolvimento, deficiência intelectual, defeitos visuais corticais e características dismórficas. Geneticamente, a BBSOAS é causada por mutações de perda de função ou deleções no gene *NR2F1* (Nuclear Receptor Subfamily 2 Group F Member 1), um fator de transcrição crítico para a regulação do desenvolvimento neocortical, diferenciação celular e orientação axonal.
+
+Este estudo utiliza dados do dataset público GSE106302 para investigar o impacto molecular da haploinsuficiência de *Nr2f1* no tecido cerebral de camundongos. Através da comparação do perfil de transcriptoma entre camundongos heterozigotos ($Nr2f1^{+/-}$, HET) e selvagens ($Nr2f1^{+/+}$, WT), busca-se mapear as redes de regulação gênica downstream afetadas.
+
+A pergunta central desta pesquisa é: quais processos biológicos e vias metabólicas sofrem desregulação transcricional decorrente da redução de dosagem de *Nr2f1*, e de que forma essas alterações se correlacionam com as manifestações neurológicas e fenotípicas observadas na BBSOAS?
+
+## 2. Materiais e Métodos
+
+### 2.1 Descrição do Dataset
+Os dados brutos de RNA-seq foram obtidos do Gene Expression Omnibus (GEO), sob o código de acesso **GSE106302**. O organismo modelo utilizado foi o camundongo (*Mus musculus*). O design experimental consiste em um estudo de caso-controle pareado por ninhada, analisando o córtex cerebral de 8 amostras biológicas no total, divididas igualmente entre 4 réplicas técnicas do genótipo mutante Heterozigoto (HET) e 4 réplicas do genótipo controle Selvagem (WT).
+
+### 2.2 Pipeline de Bioinformática
+O fluxo de análise foi totalmente automatizado e executado utilizando o gerenciador de workflows **Snakemake**:
+1. **Download:** Os arquivos brutos de sequenciamento foram obtidos via ferramenta `fasterq-dump` (sra-tools v3.1.1).
+2. **Controle de Qualidade:** A qualidade dos reads brutos e processados foi avaliada com o `FastQC` (v0.12.1). Os relatórios foram agregados pelo `MultiQC` (v1.21).
+3. **Trimagem:** A remoção de adaptadores Illumina universais e filtros de qualidade (Phred > 20) foram conduzidos pelo `fastp` (v0.23.4) com detecção automática de adaptadores para leituras pareadas (*paired-end*).
+4. **Quantificação:** O alinhamento sem mapeador clássico (*quasi-alignment*) e a estimativa de abundância de transcritos foram realizados utilizando o `Salmon` (v1.10.0) contra o transcriptoma de referência Ensembl *Mus musculus* (GRCm39, release 113).
+5. **Consolidação:** Os dados de contagem a nível de transcritos foram importados e sumarizados a nível de gene no ambiente R utilizando o pacote `tximport` (v1.30.0).
+
+### 2.3 Design Estatístico em DESeq2
+A análise de Expressão Gênica Diferencial foi modelada utilizando o pacote `DESeq2` (v1.42.0). A fórmula de design experimental aplicada foi `~ genotype`, testando o efeito do genótipo mutante sobre o basal utilizando o contraste de Wald. O grupo de referência (controle) foi explicitamente definido como **WT**. Os limiares de significância (*thresholds*) estatística foram fixados em um **p-valor ajustado (padj) < 0.05** corrigido por Benjamini-Hochberg (BH) e um limite de mudança de vezes de **|log2FoldChange| > 1** para a classificação de Genes Diferencialmente Expressos (DEGs).
+
+## 3. Resultados
+
+### 3.1 QC e Quantificação
+Os relatórios gerados pelo MultiQC indicaram uma média estável de reads por amostra. A etapa de trimagem com o `fastp` eliminou com sucesso os adaptadores Illumina preservando o comprimento médio das leituras. O mapeamento pelo Salmon apresentou altas taxas de eficiência de alinhamento, confirmando a adequação do transcriptoma de referência escolhido.
+
+### 3.2 Análise de Expressão Diferencial (DESeq2)
+```{r deseq_data, echo=FALSE}
+# Carregar dados processados
+deg <- read.csv("../results/deseq2/DEG_results.csv", row.names = 1)
+dds <- readRDS("../results/deseq2/dds_object.rds")
+vsd <- vst(dds, blind=FALSE)
+
+total_degs <- sum(deg\(padj < 0.05 & abs(deg\)log2FoldChange) > 1, na.rm=TRUE)
+up_degs <- sum(deg\(padj < 0.05 & deg\)log2FoldChange > 1, na.rm=TRUE)
+down_degs <- sum(deg\(padj < 0.05 & deg\)log2FoldChange < -1, na.rm=TRUE)
+```
+
+A análise estatística revelou um total de **`r total_degs`** genes diferencialmente expressos (DEGs). Destes, **`r up_degs`** apresentaram regulação positiva (super-expressos) e **`r down_degs`** apresentaram regulação negativa (sub-expressos) no grupo mutante HET.
+
+#### Top 20 Genes com Maior variação (|log2FC|)
+A tabela abaixo lista as 20 alterações mais intensas localizadas pelo modelo estatístico:
+```{r top20, echo=FALSE}
+deg_sig <- deg[which(deg\$padj < 0.05), ]
+deg_sig\(abs_log2FC <- abs(deg_sig\)log2FoldChange)
+top20 <- head(deg_sig[order(deg_sig\$abs_log2FC, decreasing = TRUE), ], 20)
+knitr::kable(top20[, c("baseMean", "log2FoldChange", "pvalue", "padj")])
+```
+
+### 3.3 Análise de Componentes Principais (PCA)
+O gráfico PCA foi gerado para examinar as semelhanças globais entre as amostras do transcriptoma.
+```{r pca_plot, echo=FALSE, fig.width=6, fig.height=5}
+plotPCA(vsd, intgroup="genotype") + 
+  theme_bw() + 
+  labs(title="Análise de Componentes Principais (PCA)")
+```
+
+### 3.4 Volcano Plot
+O Volcano Plot ilustra a relação entre a significância estatística e a magnitude da mudança de expressão, destacando os genes alvo.
+```{r volcano_plot, echo=FALSE, fig.width=7, fig.height=6}
+plot(deg\(log2FoldChange, -log10(deg\)pvalue), pch=20, col="grey", 
+     xlab="log2FoldChange", ylab="-log10(p-value)", main="Volcano Plot: HET vs WT")
+abline(h=-log10(0.05), col="blue", lty=2)
+abline(v=c(-1, 1), col="blue", lty=2)
+
+# Destacar genes significativos
+points(deg_sig\(log2FoldChange[abs(deg_sig\)log2FoldChange) > 1], 
+       -log10(deg_sig\(pvalue)[abs(deg_sig\)log2FoldChange) > 1], pch=20, col="red")
+
+# Nomear o gene alvo principal se presente
+if("Nr2f1" %in% rownames(deg)) {
+  text(deg["Nr2f1", "log2FoldChange"], -log10(deg["Nr2f1", "pvalue"]), 
+       labels="Nr2f1", pos=4, col="darkblue", font=2)
+}
+```
+
+### 3.5 Heatmap dos Top Genes DE
+O mapa de calor exibe o padrão de expressão dos top 50 genes mais significativamente alterados, evidenciando o agrupamento das amostras.
+```{r heatmap, echo=FALSE, fig.width=6, fig.height=8}
+top50_genes <- rownames(deg_sig[order(deg_sig\$padj), ][1:50, ])
+mat <- assay(vsd)[top50_genes, ]
+mat <- mat - rowMeans(mat) # Centralizar na média da linha
+pheatmap(mat, annotation_col=as.data.frame(colData(dds)["genotype"]),
+         show_rownames=FALSE, main="Heatmap: Top 50 Genes Significativos")
+```
+
+### 3.6 Enriquecimento Funcional (GO e KEGG)
+```{r loading_enrichment, include=FALSE}
+go_res <- read.csv("../results/enrichment/GO_results.csv")
+kegg_res <- read.csv("../results/enrichment/KEGG_results.csv")
+```
+
+#### Top Vias de Ontologia Gênica (GO)
+As principais funções enriquecidas para Processos Biológicos (BP) estão listadas abaixo:
+```{r table_go, echo=FALSE}
+knitr::kable(head(go_res[, c("ID", "Description", "GeneRatio", "p.adjust")], 10))
+```
+
+#### Top Vias Metabólicas (KEGG)
+As principais cascatas biológicas afetadas de acordo com o KEGG consistem em:
+```{r table_kegg, echo=FALSE}
+knitr::kable(head(kegg_res[, c("ID", "Description", "GeneRatio", "p.adjust")], 10))
+```
+
+## 4. Discussão
+*(Aqui você escreverá a sua análise interpretativa, comparando os caminhos que apareceram enriquecidos no passo anterior com as conclusões do artigo original do dataset. Discorra sobre como a redução de expressão de Nr2f1 altera o desenvolvimento do sistema nervoso e causa os sintomas clínicos mapeados).*
+
+## 5. Referências
+1. **Artigo do Dataset:** [Inserir Citação do Artigo Original da Release GSE106302].
+2. **Snakemake:** Mölder, F., et al. (2021). Sustainable data analysis with Snakemake. *F1000Research*.
+3. **DESeq2:** Love, M.I., Huber, W., & Anders, S. (2014). Moderated estimation of fold change and dispersion for RNA-seq data with DESeq2. *Genome Biology*.
+4. **Salmon:** Patro, R., et al. (2017). Salmon provides fast and bias-free quantification of transcript expression. *Nature Methods*.
+5. **clusterProfiler:** Wu, T., et al. (2021). clusterProfiler 4.0: A universal enrichment tool for interpreting omics data. *The Innovation*.
