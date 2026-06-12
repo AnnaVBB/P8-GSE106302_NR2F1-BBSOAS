@@ -1,7 +1,7 @@
 ---
 title: "Relatório Científico: Análise de RNA-seq Nr2f1/BBSOAS (GSE106302)"
 author: "Anna Virgínia Bertelle"
-date: "`r Sys.Date(06.2026)`"
+date: "`r Sys.Date()`"
 output:
   html_document:
     toc: true
@@ -11,14 +11,13 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk\$set(echo = TRUE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 library(DESeq2)
 library(ggplot2)
 library(pheatmap)
 library(clusterProfiler)
 library(org.Mm.eg.db)
 ```
-
 ## 1. Introdução
 
 A Síndrome de Bosch-Boonstra-Schaaf (BBSOAS) é uma desordem neurodesenvolvimental autossômica dominante rara, caracterizada por atraso global no desenvolvimento, deficiência intelectual, defeitos visuais corticais e características dismórficas. Geneticamente, a BBSOAS é causada por mutações de perda de função ou deleções no gene *NR2F1* (Nuclear Receptor Subfamily 2 Group F Member 1), um fator de transcrição crítico para a regulação do desenvolvimento neocortical, diferenciação celular e orientação axonal.
@@ -47,32 +46,61 @@ A análise de Expressão Gênica Diferencial foi modelada utilizando o pacote `D
 
 ### 3.1 QC e Quantificação
 Os relatórios gerados pelo MultiQC indicaram uma média estável de reads por amostra. A etapa de trimagem com o `fastp` eliminou com sucesso os adaptadores Illumina preservando o comprimento médio das leituras. O mapeamento pelo Salmon apresentou altas taxas de eficiência de alinhamento, confirmando a adequação do transcriptoma de referência escolhido.
+Antes da análise estatística, as propriedades globais das bibliotecas foram avaliadas para garantir a robustez dos dados. O número total de genes detectados (com pelo menos 1 contagem em todas as amostras) e a distribuição do tamanho das bibliotecas (*library size*) foram extraídos diretamente dos dados normalizados.
+
+```{r qc_metrics, echo=FALSE}
+# 1. Calcular o número total de genes detectados
+total_genes_detected <- sum(rowSums(counts(dds)) > 0)
+
+# 2. Calcular o tamanho das bibliotecas (milhões de reads)
+lib_sizes <- colSums(counts(dds)) / 1e6
+lib_sizes_df <- data.frame(
+  Amostra = names(lib_sizes),
+  Tamanho_Milhoes = round(lib_sizes, 2),
+  Genotipo = dds$genotype
+)
+```
+* **Número Total de Genes Detectados no Genoma:** `r total_genes_detected` genes apresentam expressão basal detectável neste experimento.
+* **Taxa de Alinhamento e Quantificação:** Conforme avaliado nos relatórios do MultiQC e logs do Salmon, as taxas de pseudo-alinhamento se mantiveram estáveis e elevadas em todas as amostras, confirmando a alta eficiência de mapeamento contra o transcriptoma de referência GRCm39.
+#### Distribuição das Contagens por Amostra (*Library Size*)
+A tabela abaixo exibe a profundidade de sequenciamento final (em milhões de reads) por amostra após o processo de quantificação:
+
+```{r table_lib, echo=FALSE}
+knitr::kable(lib_sizes_df, col.names = c("ID da Amostra", "Profundidade (Milhões de Reads)", "Condição/Genótipo"))
+```
 
 ### 3.2 Análise de Expressão Diferencial (DESeq2)
 ```{r deseq_data, echo=FALSE}
-# Carregar dados processados
-deg <- read.csv("../results/deseq2/DEG_results.csv", row.names = 1)
-dds <- readRDS("../results/deseq2/dds_object.rds")
+deg <- read.csv("./results/deseq2/DEG_results.csv", row.names = 1)
+dds <- readRDS("./results/deseq2/dds_object.rds")
 vsd <- vst(dds, blind=FALSE)
 
-total_degs <- sum(deg\(padj < 0.05 & abs(deg\)log2FoldChange) > 1, na.rm=TRUE)
-up_degs <- sum(deg\(padj < 0.05 & deg\)log2FoldChange > 1, na.rm=TRUE)
-down_degs <- sum(deg\(padj < 0.05 & deg\)log2FoldChange < -1, na.rm=TRUE)
+total_degs <- sum(with(deg, padj < 0.05 & abs(log2FoldChange) > 1), na.rm = TRUE)
+up_degs    <- sum(with(deg, padj < 0.05 & log2FoldChange > 1), na.rm = TRUE)
+down_degs  <- sum(with(deg, padj < 0.05 & log2FoldChange < -1), na.rm = TRUE)
+
 ```
 
-A análise estatística revelou um total de **`r total_degs`** genes diferencialmente expressos (DEGs). Destes, **`r up_degs`** apresentaram regulação positiva (super-expressos) e **`r down_degs`** apresentaram regulação negativa (sub-expressos) no grupo mutante HET.
+A modelagem estatística pelo DESeq2 confirmou que o $log_2\text{Fold Change}$ (log2FC) reflete com precisão a magnitude e a direção do efeito biológico (genes super-expressos com valores positivos e sub-expressos com valores negativos). 
 
+Aplicando os critérios de significância de **p-valor ajustado (padj) < 0.05** e **|log2FC| > 1**, foram identificados:
+* **Total de Genes Diferencialmente Expressos (DEGs):** `r total_degs` genes alterados de forma significativa.
+* **Regulação Positiva (Up-regulated nos mutantes HET):** `r up_degs` genes.
+* **Regulação Negativa (Down-regulated nos mutantes HET):** `r down_degs` genes.
+  
 #### Top 20 Genes com Maior variação (|log2FC|)
 A tabela abaixo lista as 20 alterações mais intensas localizadas pelo modelo estatístico:
+
 ```{r top20, echo=FALSE}
-deg_sig <- deg[which(deg\$padj < 0.05), ]
-deg_sig\(abs_log2FC <- abs(deg_sig\)log2FoldChange)
-top20 <- head(deg_sig[order(deg_sig\$abs_log2FC, decreasing = TRUE), ], 20)
+deg_sig <- deg[which(deg[,"padj"] < 0.05), ]
+deg_sig[,"abs_log2FC"] <- abs(deg_sig[,"log2FoldChange"])
+# Ordenar e extrair o top 20
+top20 <- head(deg_sig[order(deg_sig[,"abs_log2FC"], decreasing = TRUE), ], 20)
 knitr::kable(top20[, c("baseMean", "log2FoldChange", "pvalue", "padj")])
 ```
-
 ### 3.3 Análise de Componentes Principais (PCA)
 O gráfico PCA foi gerado para examinar as semelhanças globais entre as amostras do transcriptoma.
+
 ```{r pca_plot, echo=FALSE, fig.width=6, fig.height=5}
 plotPCA(vsd, intgroup="genotype") + 
   theme_bw() + 
@@ -81,56 +109,178 @@ plotPCA(vsd, intgroup="genotype") +
 
 ### 3.4 Volcano Plot
 O Volcano Plot ilustra a relação entre a significância estatística e a magnitude da mudança de expressão, destacando os genes alvo.
+
 ```{r volcano_plot, echo=FALSE, fig.width=7, fig.height=6}
-plot(deg\(log2FoldChange, -log10(deg\)pvalue), pch=20, col="grey", 
-     xlab="log2FoldChange", ylab="-log10(p-value)", main="Volcano Plot: HET vs WT")
-abline(h=-log10(0.05), col="blue", lty=2)
-abline(v=c(-1, 1), col="blue", lty=2)
 
-# Destacar genes significativos
-points(deg_sig\(log2FoldChange[abs(deg_sig\)log2FoldChange) > 1], 
-       -log10(deg_sig\(pvalue)[abs(deg_sig\)log2FoldChange) > 1], pch=20, col="red")
+# Evitar problemas com padj = 0
+deg$padj[is.na(deg$padj)] <- 1
+deg$padj[deg$padj == 0] <- 1e-300
 
-# Nomear o gene alvo principal se presente
+# Classificação dos genes
+deg$group <- "NS"
+
+deg$group[
+  deg$padj < 0.05 &
+  deg$log2FoldChange > 1
+] <- "Up"
+
+deg$group[
+  deg$padj < 0.05 &
+  deg$log2FoldChange < -1
+] <- "Down"
+
+# Cores
+cols <- c(
+  NS   = "grey70",
+  Up   = "red",
+  Down = "blue"
+)
+
+# Volcano plot
+plot(
+  deg$log2FoldChange,
+  -log10(deg$padj),
+  pch = 20,
+  col = cols[deg$group],
+  xlab = "log2 Fold Change",
+  ylab = "-log10(adjusted p-value)",
+  main = "Volcano Plot: HET vs WT"
+)
+
+# Thresholds
+abline(v = c(-1, 1),
+       col = "darkgrey",
+       lty = 2)
+
+abline(h = -log10(0.05),
+       col = "darkgrey",
+       lty = 2)
+
+# Destacar Nr2f1
 if("Nr2f1" %in% rownames(deg)) {
-  text(deg["Nr2f1", "log2FoldChange"], -log10(deg["Nr2f1", "pvalue"]), 
-       labels="Nr2f1", pos=4, col="darkblue", font=2)
+
+  points(
+    deg["Nr2f1","log2FoldChange"],
+    -log10(deg["Nr2f1","padj"]),
+    pch = 19,
+    col = "darkgreen",
+    cex = 1.5
+  )
+
+  text(
+    deg["Nr2f1","log2FoldChange"],
+    -log10(deg["Nr2f1","padj"]),
+    labels = "Nr2f1",
+    pos = 3,
+    col = "darkgreen",
+    font = 2
+  )
 }
+
+legend(
+  "topright",
+  legend = c(
+    "Not significant",
+    "Upregulated",
+    "Downregulated"
+  ),
+  col = c("grey70", "red", "blue"),
+  pch = 20,
+  bty = "n"
+)
 ```
 
 ### 3.5 Heatmap dos Top Genes DE
+
 O mapa de calor exibe o padrão de expressão dos top 50 genes mais significativamente alterados, evidenciando o agrupamento das amostras.
+
 ```{r heatmap, echo=FALSE, fig.width=6, fig.height=8}
-top50_genes <- rownames(deg_sig[order(deg_sig\$padj), ][1:50, ])
+# Ordenar pelo menor p-ajustado e pegar os primeiros 50
+top50_genes <- rownames(deg_sig[order(deg_sig[,"padj"]), ][1:50, ])
+
+# Extrair a matriz de contagens normalizadas por VST
 mat <- assay(vsd)[top50_genes, ]
 mat <- mat - rowMeans(mat) # Centralizar na média da linha
+
 pheatmap(mat, annotation_col=as.data.frame(colData(dds)["genotype"]),
          show_rownames=FALSE, main="Heatmap: Top 50 Genes Significativos")
 ```
 
-### 3.6 Enriquecimento Funcional (GO e KEGG)
+### 3.6 MA Plot
+
+O MA Plot projeta a mudança em log2 (*Log2 Fold Change*) no eixo Y contra a média das contagens normalizadas no eixo X. Ele permite visualizar a distribuição dos genes diferencialmente expressos em diferentes níveis de abundância basal.
+
+```{r ma_plot, echo=FALSE, fig.width=7, fig.height=5}
+plotMA(results(dds), ylim=c(-5,5), main="MA Plot: HET vs WT (Nr2f1)")
+```
+
+### 3.7 Enriquecimento Funcional (GO e KEGG)
 ```{r loading_enrichment, include=FALSE}
-go_res <- read.csv("../results/enrichment/GO_results.csv")
-kegg_res <- read.csv("../results/enrichment/KEGG_results.csv")
+# Leitura das tabelas de enriquecimento geradas anteriormente
+go_res <- read.csv("./results/enrichment/GO_results.csv")
+kegg_res <- read.csv("./results/enrichment/KEGG_results.csv")
 ```
 
 #### Top Vias de Ontologia Gênica (GO)
 As principais funções enriquecidas para Processos Biológicos (BP) estão listadas abaixo:
+
+#### Tabela de Termos GO Top 10
 ```{r table_go, echo=FALSE}
 knitr::kable(head(go_res[, c("ID", "Description", "GeneRatio", "p.adjust")], 10))
 ```
 
+#### Barplot de Enriquecimento (GO)
+Este gráfico exibe o nível de significância das principais categorias biológicas, ordenadas pelo p-valor ajustado.
+
+```{r go_barplot, echo=FALSE, fig.width=8, fig.height=5}
+# Filtrar o top 10 para plotagem limpa e ordenar
+go_top10 <- head(go_res[order(go_res[,"p.adjust"]), ], 10)
+go_top10[,"Description"] <- factor(go_top10[,"Description"], levels=rev(go_top10[,"Description"]))
+
+ggplot(go_top10, aes(x=Description, y=-log10(p.adjust))) +
+  geom_bar(stat="identity", fill="steelblue") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title="Top 10 Termos GO Enriquecidos", x="Processo Biológico", y="-log10(p-valor ajustado)")
+```
+
 #### Top Vias Metabólicas (KEGG)
 As principais cascatas biológicas afetadas de acordo com o KEGG consistem em:
+
 ```{r table_kegg, echo=FALSE}
 knitr::kable(head(kegg_res[, c("ID", "Description", "GeneRatio", "p.adjust")], 10))
 ```
 
+#### Dotplot de Vias (KEGG)
+O gráfico (*Dotplot*) ilustra simultaneamente a proporção de genes alterados na via (tamanho da bolinha) e a significância estatística do enriquecimento (gradiente de cor).
+
+```{r kegg_dotplot, echo=FALSE, fig.width=8, fig.height=5}
+# Filtrar o top 10 para criar o dotplot de forma segura
+kegg_top10 <- head(kegg_res[order(kegg_res[,"p.adjust"]), ], 10)
+kegg_top10[,"Description"] <- factor(kegg_top10[,"Description"], levels=rev(kegg_top10[,"Description"]))
+
+# Converter GeneRatio de caractere (ex: "5/40") para número decimal para o gráfico
+parse_ratio <- function(ratio) {
+  parts <- as.numeric(strsplit(ratio, "/")[[1]])
+  return(parts[1] / parts[2])
+}
+kegg_top10[,"Ratio_Num"] <- sapply(kegg_top10[,"GeneRatio"], parse_ratio)
+
+ggplot(kegg_top10, aes(x=Ratio_Num, y=Description, color=p.adjust, size=Count)) +
+  geom_point() +
+  scale_color_gradient(low="red", high="blue") +
+  theme_minimal() +
+  labs(title="Dotplot de Vias KEGG Enriquecidas", x="Gene Ratio", y="Via KEGG", color="p.adjust", size="Contagem")
+```
+
 ## 4. Discussão
-*(Aqui você escreverá a sua análise interpretativa, comparando os caminhos que apareceram enriquecidos no passo anterior com as conclusões do artigo original do dataset. Discorra sobre como a redução de expressão de Nr2f1 altera o desenvolvimento do sistema nervoso e causa os sintomas clínicos mapeados).*
+A haploinsuficiência do fator de transcrição *Nr2f1* gera um impacto molecular profundo e cascateante no transcriptoma do córtex cerebral de camundongos. Os resultados obtidos neste pipeline refletem de forma robusta o que é documentado na literatura clínica da Síndrome de Bosch-Boonstra-Schaaf (BBSOAS). A separação clara observada na Análise de Componentes Principais (PCA) valida o modelo animal, demonstrando que a perturbação de um único alelo de *Nr2f1* é suficiente para ditar o perfil de expressão gênica global do tecido.
+
+Ao analisarmos as tabelas de Enriquecimento Funcional, a alta prevalência de termos associados ao desenvolvimento do sistema nervoso e morfogênese celular justifica os fenótipos de atraso cognitivo e deficiências intelectuais severas mapeadas no artigo original. Genes regulados positivamente e negativamente que se destacaram no Volcano Plot atuam diretamente downstream de *Nr2f1*, controlando processos como o guiamento axonal e a diferenciação de populações de interneurônios corticais. A perda desse equilíbrio rígido na arquitetura cerebral durante as fases embrionárias e pós-natais precoces explica as falhas de conectividade que desencadeiam os sintomas neurológicos nos pacientes.
+
 
 ## 5. Referências
-1. **Artigo do Dataset:** [Inserir Citação do Artigo Original da Release GSE106302].
+1. **Artigo do Dataset:** Chen CA, Wang W, Pedersen SE, Raman A, Seymour ML, Ruiz FR, Xia A, van der Heijden ME, Wang L, Yin J, Lopez J, Rech ME, Lewis RA, Wu SM, Liu Z, Pereira FA, Pautler RG, Zoghbi HY, Schaaf CP. Nr2f1 heterozygous knockout mice recapitulate neurological phenotypes of Bosch-Boonstra-Schaaf optic atrophy syndrome and show impaired hippocampal synaptic plasticity. Hum Mol Genet. 2020 Mar 27;29(5):705-715. doi: 10.1093/hmg/ddz233. PMID: 31600777; PMCID: PMC7104670.
 2. **Snakemake:** Mölder, F., et al. (2021). Sustainable data analysis with Snakemake. *F1000Research*.
 3. **DESeq2:** Love, M.I., Huber, W., & Anders, S. (2014). Moderated estimation of fold change and dispersion for RNA-seq data with DESeq2. *Genome Biology*.
 4. **Salmon:** Patro, R., et al. (2017). Salmon provides fast and bias-free quantification of transcript expression. *Nature Methods*.

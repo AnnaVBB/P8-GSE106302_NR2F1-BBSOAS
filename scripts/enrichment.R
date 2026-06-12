@@ -1,6 +1,7 @@
 library(clusterProfiler)
 library(org.Mm.eg.db)
 
+
 # 1. Ler a tabela de resultados do DESeq2
 deg <- read.csv("results/deseq2/DEG_results.csv", row.names = 1)
 
