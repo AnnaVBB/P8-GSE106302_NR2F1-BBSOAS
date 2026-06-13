@@ -1,9 +1,9 @@
 #########################################
-# CONFIGURAÇÃO 
+# CONFIGURAÇÃO
 #########################################
+import pandas as pd
 configfile: "config.yaml"
 
-import pandas as pd
 
 samples = pd.read_csv(
     "samples.tsv",
@@ -16,22 +16,18 @@ SAMPLES = samples["sample_id"].tolist()
 #########################################
 rule all:
     input:
-	# Execução do QC inicial e final
+        # Execução do QC inicial e final
         "results/fastqc/multiqc_report.html",
         "results/fastqc/trimmed/multiqc_trimmed_report.html",
-	# Quantificação
+        # Quantificação
         expand("results/salmon/{sample}/quant.sf", sample=SAMPLES),
         # Análise estatística e tabelas de expressão
         "results/deseq2/tximport_complete.txt",
         "results/deseq2/DEG_results.csv",
-	# Enriquecimento funcional
+        # Enriquecimento funcional
         "results/enrichment/GO_results.csv",
         "results/enrichment/KEGG_results.csv",
-        # Gráficos e relatório final
-        "results/plots/PCA_plot.png",
-        "results/plots/volcano_plot.png",
-        "results/plots/heatmap_DEG.png",
-        "results/plots/MA_plot.png",
+    # Relatório final
         "results/plots/RELATORIO_FINAL.html"
 
 ########################################
@@ -59,8 +55,8 @@ rule salmon_index:
 #########################################
 rule download_fastq:
     output:
-        r1="data/raw/{sample}_1.fastq.gz",
-        r2="data/raw/{sample}_2.fastq.gz"
+        r1 = "data/raw/{sample}_1.fastq.gz",
+        r2 = "data/raw/{sample}_2.fastq.gz"
 
     conda:
         "envs/sra.yaml"
@@ -79,13 +75,13 @@ rule download_fastq:
 #########################################
 rule fastqc_raw:
     input:
-        r1="data/raw/{sample}_1.fastq.gz",
-        r2="data/raw/{sample}_2.fastq.gz"
+        r1 = "data/raw/{sample}_1.fastq.gz",
+        r2 = "data/raw/{sample}_2.fastq.gz"
     output:
-        html1="results/fastqc/{sample}_1_fastqc.html",
-        html2="results/fastqc/{sample}_2_fastqc.html",
-        zip1="results/fastqc/{sample}_1_fastqc.zip",
-        zip2="results/fastqc/{sample}_2_fastqc.zip"
+        html1 = "results/fastqc/{sample}_1_fastqc.html",
+        html2 = "results/fastqc/{sample}_2_fastqc.html",
+        zip1 = "results/fastqc/{sample}_1_fastqc.zip",
+        zip2 = "results/fastqc/{sample}_2_fastqc.zip"
     conda:
         "envs/fastqc.yaml"
     threads: 2
@@ -95,13 +91,13 @@ rule fastqc_raw:
 ###################################
 rule fastp:
     input:
-        r1="data/raw/{sample}_1.fastq.gz",
-        r2="data/raw/{sample}_2.fastq.gz"
+        r1 = "data/raw/{sample}_1.fastq.gz",
+        r2 = "data/raw/{sample}_2.fastq.gz"
     output:
-        r1="results/fastqc/trimmed/{sample}_1_trimmed.fastq.gz",
-        r2="results/fastqc/trimmed/{sample}_2_trimmed.fastq.gz",
-        json="results/fastqc/trimmed/{sample}_fastp.json",
-        html="results/fastqc/trimmed/{sample}_fastp.html"
+        r1 = "results/fastqc/trimmed/{sample}_1_trimmed.fastq.gz",
+        r2 = "results/fastqc/trimmed/{sample}_2_trimmed.fastq.gz",
+        json = "results/fastqc/trimmed/{sample}_fastp.json",
+        html = "results/fastqc/trimmed/{sample}_fastp.html"
     conda:
         "envs/fastp.yaml"
     threads: 4
@@ -116,13 +112,13 @@ rule fastp:
 ##########################################
 rule fastqc_trimmed:
     input:
-        r1="results/fastqc/trimmed/{sample}_1_trimmed.fastq.gz",
-        r2="results/fastqc/trimmed/{sample}_2_trimmed.fastq.gz"
+        r1 = "results/fastqc/trimmed/{sample}_1_trimmed.fastq.gz",
+        r2 = "results/fastqc/trimmed/{sample}_2_trimmed.fastq.gz"
     output:
-        html1="results/fastqc/trimmed/{sample}_1_trimmed_fastqc.html",
-        html2="results/fastqc/trimmed/{sample}_2_trimmed_fastqc.html",
-        zip1="results/fastqc/trimmed/{sample}_1_trimmed_fastqc.zip",
-        zip2="results/fastqc/trimmed/{sample}_2_trimmed_fastqc.zip"
+        html1 = "results/fastqc/trimmed/{sample}_1_trimmed_fastqc.html",
+        html2 = "results/fastqc/trimmed/{sample}_2_trimmed_fastqc.html",
+        zip1 = "results/fastqc/trimmed/{sample}_1_trimmed_fastqc.zip",
+        zip2 = "results/fastqc/trimmed/{sample}_2_trimmed_fastqc.zip"
     conda:
         "envs/fastqc.yaml"  # Reutiliza o mesmo ambiente que você já criou para o FastQC!
     threads: 2
@@ -143,8 +139,10 @@ rule multiqc:
 ##################################################################
 rule multiqc_trimmed:
     input:
-        expand("results/fastqc/trimmed/{sample}_1_trimmed_fastqc.html", sample=SAMPLES),
-        expand("results/fastqc/trimmed/{sample}_2_trimmed_fastqc.html", sample=SAMPLES)
+        expand(
+            "results/fastqc/trimmed/{sample}_1_trimmed_fastqc.html", sample=SAMPLES),
+        expand(
+            "results/fastqc/trimmed/{sample}_2_trimmed_fastqc.html", sample=SAMPLES)
     output:
         "results/fastqc/trimmed/multiqc_trimmed_report.html"
     conda:
@@ -158,15 +156,15 @@ rule multiqc_trimmed:
 #########################################
 rule salmon_quant:
     input:
-        index="reference/salmon_index",
-        r1="results/fastqc/trimmed/{sample}_1_trimmed.fastq.gz",
-        r2="results/fastqc/trimmed/{sample}_2_trimmed.fastq.gz"
-    output:       
-        sf="results/salmon/{sample}/quant.sf",
-        dir=directory("results/salmon/{sample}")
+        index = "reference/salmon_index",
+        r1 = "results/fastqc/trimmed/{sample}_1_trimmed.fastq.gz",
+        r2 = "results/fastqc/trimmed/{sample}_2_trimmed.fastq.gz"
+    output:
+        sf = "results/salmon/{sample}/quant.sf",
+        dir = directory("results/salmon/{sample}")
     conda:
-        "envs/salmon.yaml" 
-    threads: 6 
+        "envs/salmon.yaml"
+    threads: 6
     shell:
         """
         salmon quant -i {input.index} -l A \
@@ -180,57 +178,57 @@ rule salmon_quant:
 #########################################
 rule tximport:
     input:
-        sf=expand("results/salmon/{sample}/quant.sf", sample=SAMPLES),
-        tx2gene="reference/tx2gene.csv",
-        samples="samples.tsv"
+        sf = expand("results/salmon/{sample}/quant.sf", sample=SAMPLES),
+        tx2gene = "reference/tx2gene.csv",
+        samples = "samples.tsv"
     output:
-        txt="results/deseq2/tximport_complete.txt",
-        rds="results/deseq2/txi.rds"
+        txt = "results/deseq2/tximport_complete.txt",
+        rds = "results/deseq2/txi.rds"
     conda:
-        "envs/rnaseq.yaml"  
+        "envs/rnaseq.yaml"
     script:
-        "scripts/tximport.R"  
+        "scripts/tximport.R"
 ###############################################
 rule deseq2:
     input:
-        rds="results/deseq2/txi.rds",
-        samples="samples.tsv"
+        rds = "results/deseq2/txi.rds",
+        samples = "samples.tsv"
     output:
         # Tabela final contendo os genes, p-valores e log2FoldChange
-        csv="results/deseq2/DEG_results.csv"
+        csv = "results/deseq2/DEG_results.csv"
     conda:
         "envs/rnaseq.yaml"
     script:
         "scripts/deseq2.R"
 
-#########################################
-# VISUALIZAÇÕES (PCA, VOLCANO, HEATMAP, MA)
-#########################################
-rule generate_plots:
-    input:
-        csv="results/deseq2/DEG_results.csv",
-        dds="results/deseq2/dds_object.rds"
-    output:
-        pca="results/plots/PCA_plot.png",
-        volcano="results/plots/volcano_plot.png",
-        heatmap="results/plots/heatmap_DEG.png",
-        ma="results/plots/MA_plot.png",
-        html="results/plots/RELATORIO_FINAL.html"
-    conda:
-        "envs/rnaseq.yaml"
-    script:
-        "scripts/generate_plots.R"
 
 #########################################
 # ENRIQUECIMENTO
 #########################################
 rule enrichment:
     input:
-        csv="results/deseq2/DEG_results.csv"
+        csv = "results/deseq2/DEG_results.csv"
     output:
-        go="results/enrichment/GO_results.csv",
-        kegg="results/enrichment/KEGG_results.csv"
+        go = "results/enrichment/GO_results.csv",
+        kegg = "results/enrichment/KEGG_results.csv"
     conda:
         "envs/rnaseq.yaml"
     script:
         "scripts/enrichment.R"
+
+#########################################
+# RELATÓRIO CIENTÍFICO FINAL
+#########################################
+rule generate_report:
+    input:
+        csv = "results/deseq2/DEG_results.csv",
+        dds = "results/deseq2/dds_object.rds",
+        go = "results/enrichment/GO_results.csv",
+        kegg = "results/enrichment/KEGG_results.csv"
+    output:
+        html = "results/plots/RELATORIO_FINAL.html"
+    conda:
+        "envs/rnaseq.yaml"
+    rmarkdown:
+        "relatorio.Rmd"
+
