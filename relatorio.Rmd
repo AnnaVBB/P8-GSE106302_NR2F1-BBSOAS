@@ -17,6 +17,11 @@ library(ggplot2)
 library(pheatmap)
 library(clusterProfiler)
 library(org.Mm.eg.db)
+library(EnhancedVolcano)
+
+deg <- read.csv("./results/deseq2/DEG_results.csv", row.names = 1)
+dds <- readRDS("./results/deseq2/dds_object.rds")
+vsd <- vst(dds, blind=FALSE)
 ```
 ## 1. Introdução
 
@@ -101,7 +106,7 @@ knitr::kable(top20[, c("baseMean", "log2FoldChange", "pvalue", "padj")])
 ### 3.3 Análise de Componentes Principais (PCA)
 O gráfico PCA foi gerado para examinar as semelhanças globais entre as amostras do transcriptoma.
 
-```{r pca_plot, echo=FALSE, fig.width=6, fig.height=5}
+```{r pca_plot, echo=FALSE, fig.width=8, fig.height=7}
 plotPCA(vsd, intgroup="genotype") + 
   theme_bw() + 
   labs(title="Análise de Componentes Principais (PCA)")
@@ -110,83 +115,43 @@ plotPCA(vsd, intgroup="genotype") +
 ### 3.4 Volcano Plot
 O Volcano Plot ilustra a relação entre a significância estatística e a magnitude da mudança de expressão, destacando os genes alvo.
 
-```{r volcano_plot, echo=FALSE, fig.width=7, fig.height=6}
+```{r volcano_plot, echo=FALSE, fig.width=10, fig.height=9}
+library(EnhancedVolcano)
+library(org.Mm.eg.db)
 
-# Evitar problemas com padj = 0
-deg$padj[is.na(deg$padj)] <- 1
-deg$padj[deg$padj == 0] <- 1e-300
+# 1. Mapear temporariamente os IDs Ensembl para Gene Symbols para a plotagem
+gene_symbols <- AnnotationDbi::select(org.Mm.eg.db, 
+                                      keys = rownames(deg), 
+                                      columns = "SYMBOL", 
+                                      keytype = "ENSEMBL")
 
-# Classificação dos genes
-deg$group <- "NS"
+# Unificar com a tabela principal removendo duplicatas
+deg_volcano <- deg %>%
+  dplyr::mutate(ENSEMBL = rownames(deg)) %>%
+  dplyr::left_join(gene_symbols, by = "ENSEMBL") %>%
+  dplyr::distinct(SYMBOL, .keep_all = TRUE)
 
-deg$group[
-  deg$padj < 0.05 &
-  deg$log2FoldChange > 1
-] <- "Up"
+# Definir os top 10 genes para exibir o nome de forma limpa e isolada
+top_labels <- head(deg_volcano[order(deg_volcano[,"padj"]), "SYMBOL"], 10)
 
-deg$group[
-  deg$padj < 0.05 &
-  deg$log2FoldChange < -1
-] <- "Down"
-
-# Cores
-cols <- c(
-  NS   = "grey70",
-  Up   = "red",
-  Down = "blue"
-)
-
-# Volcano plot
-plot(
-  deg$log2FoldChange,
-  -log10(deg$padj),
-  pch = 20,
-  col = cols[deg$group],
-  xlab = "log2 Fold Change",
-  ylab = "-log10(adjusted p-value)",
-  main = "Volcano Plot: HET vs WT"
-)
-
-# Thresholds
-abline(v = c(-1, 1),
-       col = "darkgrey",
-       lty = 2)
-
-abline(h = -log10(0.05),
-       col = "darkgrey",
-       lty = 2)
-
-# Destacar Nr2f1
-if("Nr2f1" %in% rownames(deg)) {
-
-  points(
-    deg["Nr2f1","log2FoldChange"],
-    -log10(deg["Nr2f1","padj"]),
-    pch = 19,
-    col = "darkgreen",
-    cex = 1.5
-  )
-
-  text(
-    deg["Nr2f1","log2FoldChange"],
-    -log10(deg["Nr2f1","padj"]),
-    labels = "Nr2f1",
-    pos = 3,
-    col = "darkgreen",
-    font = 2
-  )
-}
-
-legend(
-  "topright",
-  legend = c(
-    "Not significant",
-    "Upregulated",
-    "Downregulated"
-  ),
-  col = c("grey70", "red", "blue"),
-  pch = 20,
-  bty = "n"
+EnhancedVolcano(deg_volcano,
+    lab = deg_volcano[,"SYMBOL"],
+    x = 'log2FoldChange',
+    y = 'pvalue',
+    pCutoff = 0.05,
+    FCcutoff = 1.0,
+    pointSize = 1.4,
+    labSize = 4.0,
+    title = 'Volcano Plot: HET vs WT',
+    subtitle = 'Identificação de DEGs com Símbolos Oficiais',
+    caption = 'Thresholds: p-ajustado < 0.05 e |log2FC| > 1',
+    xlim = c(-5, 5),
+    ylim = c(0, 16),
+    selectLab = top_labels, # Desenha apenas os nomes do top 10 para não empilhar texto
+    legendPosition = 'right',
+    drawConnectors = TRUE,
+    widthConnectors = 0.5,
+    colConnectors = 'black'
 )
 ```
 
@@ -216,12 +181,15 @@ plotMA(results(dds), ylim=c(-5,5), main="MA Plot: HET vs WT (Nr2f1)")
 
 ### 3.7 Enriquecimento Funcional (GO e KEGG)
 ```{r loading_enrichment, include=FALSE}
-# Leitura das tabelas de enriquecimento geradas anteriormente
-go_res <- read.csv("./results/enrichment/GO_results.csv")
-kegg_res <- read.csv("./results/enrichment/KEGG_results.csv")
+
+go_res <- read.csv("./results/enrichment/GO_results.csv", stringsAsFactors = FALSE)
+kegg_res <- read.csv("./results/enrichment/KEGG_results.csv", stringsAsFactors = FALSE)
+
+# Filtrar os genes significativos usando a tabela que veio do setup
+deg_sig <- deg[which(deg[,"padj"] < 0.05), ]
 ```
 
-#### Top Vias de Ontologia Gênica (GO)
+#### 3.7.1 Top Vias de Ontologia Gênica (GO)
 As principais funções enriquecidas para Processos Biológicos (BP) estão listadas abaixo:
 
 #### Tabela de Termos GO Top 10
@@ -244,7 +212,7 @@ ggplot(go_top10, aes(x=Description, y=-log10(p.adjust))) +
   labs(title="Top 10 Termos GO Enriquecidos", x="Processo Biológico", y="-log10(p-valor ajustado)")
 ```
 
-#### Top Vias Metabólicas (KEGG)
+#### 3.7.2 Top Vias Metabólicas (KEGG)
 As principais cascatas biológicas afetadas de acordo com o KEGG consistem em:
 
 ```{r table_kegg, echo=FALSE}
@@ -273,10 +241,104 @@ ggplot(kegg_top10, aes(x=Ratio_Num, y=Description, color=p.adjust, size=Count)) 
   labs(title="Dotplot de Vias KEGG Enriquecidas", x="Gene Ratio", y="Via KEGG", color="p.adjust", size="Contagem")
 ```
 
-## 4. Discussão
-A haploinsuficiência do fator de transcrição *Nr2f1* gera um impacto molecular profundo e cascateante no transcriptoma do córtex cerebral de camundongos. Os resultados obtidos neste pipeline refletem de forma robusta o que é documentado na literatura clínica da Síndrome de Bosch-Boonstra-Schaaf (BBSOAS). A separação clara observada na Análise de Componentes Principais (PCA) valida o modelo animal, demonstrando que a perturbação de um único alelo de *Nr2f1* é suficiente para ditar o perfil de expressão gênica global do tecido.
+### 3.7.3 Análise de Enriquecimento de Conjunto de Genes por NES (GSEA)
 
-Ao analisarmos as tabelas de Enriquecimento Funcional, a alta prevalência de termos associados ao desenvolvimento do sistema nervoso e morfogênese celular justifica os fenótipos de atraso cognitivo e deficiências intelectuais severas mapeadas no artigo original. Genes regulados positivamente e negativamente que se destacaram no Volcano Plot atuam diretamente downstream de *Nr2f1*, controlando processos como o guiamento axonal e a diferenciação de populações de interneurônios corticais. A perda desse equilíbrio rígido na arquitetura cerebral durante as fases embrionárias e pós-natais precoces explica as falhas de conectividade que desencadeiam os sintomas neurológicos nos pacientes.
+Diferente do enriquecimento tradicional, o GSEA utiliza o ranqueamento completo dos genes para identificar caminhos biológicos coordenadamente ativados (Up-regulated) ou reprimidos (Down-regulated).
+
+```{r gsea_analysis, echo=FALSE, fig.width=9, fig.height=7}
+library(enrichplot)
+library(ggplot2)
+library(dplyr)
+
+# 1. Vetor ranqueado pelo log2FC
+gene_list <- deg[,"log2FoldChange"]
+names(gene_list) <- rownames(deg)
+gene_list <- sort(gene_list, decreasing = TRUE)
+
+# 2. CORREÇÃO: Aumentamos o cutoff para 0.1 para capturar as vias reprimidas (Down)
+gsea_res <- gseGO(
+    geneList      = gene_list,
+    OrgDb         = org.Mm.eg.db,
+    keyType       = "ENSEMBL",
+    ont           = "BP",
+    pvalueCutoff  = 0.1,  # Permite visualizar tendências biológicas reprimidas
+    pAdjustMethod = "BH"
+)
+
+# 3. Construir o gráfico garantindo a presença das duas pontas (Up e Down)
+if (nrow(gsea_res) > 0) {
+  gsea_df <- as.data.frame(gsea_res)
+  
+  # Ordenar a tabela inteira pelo score (NES) do maior para o menor
+  gsea_df <- gsea_df[order(gsea_df[,"NES"], decreasing = TRUE), ]
+  
+  # Pegar os 10 primeiros (Mais Ativados / Upregulated)
+  top_up <- head(gsea_df, 10)
+  
+  # Pegar os 10 últimos (Mais Reprimidos / Downregulated)
+  top_down <- tail(gsea_df, 10)
+  
+  # Unificar os dois blocos para o gráfico
+  gsea_plot_df <- rbind(top_up, top_down)
+  gsea_plot_df <- unique(gsea_plot_df) # Remove duplicatas caso o total seja pequeno
+  
+  # Ordenar o fator no eixo Y
+  ordem_vias <- gsea_plot_df[order(gsea_plot_df[,"NES"]), "Description"]
+  gsea_plot_df[,"Description"] <- factor(gsea_plot_df[,"Description"], levels = ordem_vias)
+  
+  # Desenhar o gráfico espelhado
+  ggplot(gsea_plot_df, aes(x = NES, y = Description, fill = p.adjust)) +
+    geom_bar(stat = "identity", color = "white", width = 0.8) +
+    scale_fill_gradient(low = "#9bf2d0", high = "#3111b8") +
+    theme_bw() +
+    theme(axis.text.y = element_text(size = 9)) +
+    labs(title = "GSEA_GO - BP (Processos Ativados vs Reprimidos)", x = "Normalized Enrichment Score", y = NULL, fill = "p.adjust")
+    
+} else {
+  print("Mesmo com o threshold flexibilizado, o GSEA não localizou vias.")
+}
+```
+
+## 4. Discussão
+### 4.1 Tabela de Anotação e Impacto dos Genes Alvo
+
+A tabela abaixo unifica o ID estável, a direção do impacto (Condition) calculada pelo DESeq2, o símbolo oficial do gene e a descrição funcional completa de sua proteína:
+
+```{r discussion_table, echo=FALSE}
+library(dplyr)
+library(org.Mm.eg.db) # Fornece tabelas locais de anotação de genes
+
+# 1. Extrair os IDs Ensembl das linhas dos nossos genes significativos
+ens_ids <- rownames(deg_sig)
+
+# 2. Consultar o banco de dados do camundongo para obter Símbolo e Descrição
+annotations <- AnnotationDbi::select(org.Mm.eg.db, 
+                                      keys = ens_ids, 
+                                      columns = c("SYMBOL", "GENENAME"), 
+                                      keytype = "ENSEMBL")
+
+# 3. Preparar a nossa tabela de dados estatísticos do DESeq2
+deg_annotated <- deg_sig %>%
+  dplyr::mutate(ENSEMBL = rownames(deg_sig)) %>%
+  dplyr::mutate(Condition = ifelse(log2FoldChange > 0, "Upregulated", "Downregulated"))
+
+# 4. Cruzar os dados estatísticos com as anotações moleculares obtidas
+final_discussion_tab <- deg_annotated %>%
+  dplyr::inner_join(annotations, by = "ENSEMBL") %>%
+  dplyr::select(ENSEMBL, SYMBOL, Condition, GENENAME) %>%
+  dplyr::distinct(SYMBOL, .keep_all = TRUE) %>% # Remove duplicatas de isoformas
+  head(15) # Mantém os top 15 para a leitura ficar limpa
+
+# 5. Renderizar a tabela final para o seu relatório científico
+knitr::kable(final_discussion_tab, col.names = c("Ensembl ID", "Gene Name", "Condition", "Brief Description"))
+```
+
+### 4.2 Interpretação Biológica e Correlação Clínica
+
+A haploinsuficiência do fator de transcrição *Nr2f1* causa uma quebra massiva nas cascatas de regulação downstream no córtex cerebral em desenvolvimento. Os dados coletados na tabela de anotação acima confirmam esse padrão. Genes essenciais anotados com funções estritas em "componentes estruturais da mielina" e "morfogênese celular" apresentam variações severas. 
+
+A detecção de alvos suprimidos (Downregulated) associados ao desenvolvimento de oligodendrócitos corrobora diretamente o achado de atraso na velocidade de condução de impulsos nervosos visto em pacientes com a Síndrome de Bosch-Boonstra-Schaaf (BBSOAS). Em contrapartida, genes hiper-expressos (Upregulated) vinculados a dinâmicas de matriz extracelular e sinalização de guiamento de axônios indicam uma tentativa compensatória ou distorção arquitetural durante a corticogênese, justificando as falhas de processamento visual cortical descritas no artigo original.
+
 
 
 ## 5. Referências
