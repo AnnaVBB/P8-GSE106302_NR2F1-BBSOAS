@@ -24,17 +24,22 @@ dds <- readRDS("./results/deseq2/dds_object.rds")
 vsd <- vst(dds, blind=FALSE)
 ```
 ## 1. Introdução
+  A **Síndrome de Atrofia Óptica de Bosch-Boonstra-Schaaf (BBSOAS)** é uma doença genética autossômica dominante rara (~0,0004%) de penetrância completa causada por mutações no gene NR2F1, localizado no braço longo do cromossomo 5 (região 5q15). 
+  A deleção no gene impacta diversas funções no neurodesenvolvimento, tais quais a estrutura do córtex, o desenvolvimento ocular e a neurogênese (formação de novos neurônios a partir de células-tronco neurais, na vida adulta ocorre no hipocampo e é vital para o aprendizado e memória).
+  Além disso, ocorre haploinsuficiência da proteína COUP-TFI (Chicken Ovalbumin Upstream Promoter-Transcription Factor I), que atua como fator de transcrição, sendo responsável por regular o funcionamento de vários outros genes envolvidos no desenvolvimento do cérebro e do sistema visual. Devido a escassez dessa proteína, o cérebro e os olhos não se desenvolvem como deveriam. 
+  Apesar da penetrância completa, a expressividade é variável entre os pacientes, dependendo da gravidade e da combinação dos sintomas, sendo os principais deficiência visual, prejuízos no desenvolvimento motor e cognitivo, deficiência intelectual e crises convulsivas. O diagnóstico molecular se dá através de sequenciamentos completos do exoma (WES), onde são detectados principalmente mutações de ponto (mutações missense ou nonsense) ou deleções (perda de um pedaço do cromossomo 5). Até o momento não há cura para a doença, o tratamento foca em melhorar a qualidade de vida do paciente. 
+  Este estudo utiliza dados do dataset público GSE106302 para investigar o impacto molecular da haploinsuficiência de *Nr2f1* no tecido cerebral de camundongos. Através da comparação do perfil de transcriptoma entre camundongos heterozigotos ($Nr2f1^{+/-}$, HET) e selvagens ($Nr2f1^{+/+}$, WT), busca-se mapear as redes de regulação gênica downstream afetadas.
+  A pergunta central desta pesquisa é: quais processos biológicos e vias metabólicas sofrem desregulação transcricional decorrente de *Nr2f1*, e de que forma essas alterações se correlacionam com as manifestações neurológicas observadas na BBSOAS?
 
-A Síndrome de Bosch-Boonstra-Schaaf (BBSOAS) é uma desordem neurodesenvolvimental autossômica dominante rara, caracterizada por atraso global no desenvolvimento, deficiência intelectual, defeitos visuais corticais e características dismórficas. Geneticamente, a BBSOAS é causada por mutações de perda de função ou deleções no gene *NR2F1* (Nuclear Receptor Subfamily 2 Group F Member 1), um fator de transcrição crítico para a regulação do desenvolvimento neocortical, diferenciação celular e orientação axonal.
 
-Este estudo utiliza dados do dataset público GSE106302 para investigar o impacto molecular da haploinsuficiência de *Nr2f1* no tecido cerebral de camundongos. Através da comparação do perfil de transcriptoma entre camundongos heterozigotos ($Nr2f1^{+/-}$, HET) e selvagens ($Nr2f1^{+/+}$, WT), busca-se mapear as redes de regulação gênica downstream afetadas.
-
-A pergunta central desta pesquisa é: quais processos biológicos e vias metabólicas sofrem desregulação transcricional decorrente da redução de dosagem de *Nr2f1*, e de que forma essas alterações se correlacionam com as manifestações neurológicas e fenotípicas observadas na BBSOAS?
+**Por que camundongos?**
+	O NR2Fq humano compartilha mais de 99% de identidade na sequência de aminoácidos com seu homólogo murino. 
+  Como a síndrome de BBSOAS em humanos geralmente é causada pela perda de apenas uma das cópias do gene (mutações heterozigóticas em NR2F1+/-), cientistas replicaram esse genótipo para se aproximar ao máximo dos humanos e obtiveram resultados semelhantes. Em um estudo de Chun-An Chen e colaboradores (2020), observaram que os camundongos apresentaram alterações na **memória do medo** (dificuldades em formar, armazenar ou recupera-la), **redução da LTP** (long-term potentiation) **e da LTD** (Long-term depression) que são essenciais para flexibilização das redes neurais, **deficiências auditivas, hipotonia neonatal** e **plasticidade sináptica prejudicada no hipocampo**. Neste trabalho os pesquisadores queriam investigar quais genes deixam de ser regulados quando Nr2f1 é reduzido, comparando modelos selvagens (Nr2f1+/+) com heterozigoto (Nr2f1+/−) do hipocampo de murinos. Eles identificaram genes diferencialmente expressos através do RNA-seq e superexpressão de múltiplas metaloproteinases da matriz (MMPs)
 
 ## 2. Materiais e Métodos
 
 ### 2.1 Descrição do Dataset
-Os dados brutos de RNA-seq foram obtidos do Gene Expression Omnibus (GEO), sob o código de acesso **GSE106302**. O organismo modelo utilizado foi o camundongo (*Mus musculus*). O design experimental consiste em um estudo de caso-controle pareado por ninhada, analisando o córtex cerebral de 8 amostras biológicas no total, divididas igualmente entre 4 réplicas técnicas do genótipo mutante Heterozigoto (HET) e 4 réplicas do genótipo controle Selvagem (WT).
+Os dados brutos de RNA-seq foram obtidos do Gene Expression Omnibus (GEO), sob o código de acesso **GSE106302**. O organismo modelo utilizado foi o camundongo (*Mus musculus*). O design experimental consiste em um estudo de caso-controle pareado, analisando o córtex cerebral de 8 amostras biológicas no total, divididas igualmente entre 4 réplicas técnicas do genótipo mutante Heterozigoto (HET) e 4 réplicas do genótipo controle Selvagem (WT).
 
 ### 2.2 Pipeline de Bioinformática
 O fluxo de análise foi totalmente automatizado e executado utilizando o gerenciador de workflows **Snakemake**:
@@ -50,8 +55,14 @@ A análise de Expressão Gênica Diferencial foi modelada utilizando o pacote `D
 ## 3. Resultados
 
 ### 3.1 QC e Quantificação
-Os relatórios gerados pelo MultiQC indicaram uma média estável de reads por amostra. A etapa de trimagem com o `fastp` eliminou com sucesso os adaptadores Illumina preservando o comprimento médio das leituras. O mapeamento pelo Salmon apresentou altas taxas de eficiência de alinhamento, confirmando a adequação do transcriptoma de referência escolhido.
-Antes da análise estatística, as propriedades globais das bibliotecas foram avaliadas para garantir a robustez dos dados. O número total de genes detectados (com pelo menos 1 contagem em todas as amostras) e a distribuição do tamanho das bibliotecas (*library size*) foram extraídos diretamente dos dados normalizados.
+Os relatórios gerados pelo MultiQC indicaram uma média estável de reads por amostra. A etapa de trimming com o `fastp` eliminou com sucesso os adaptadores Illumina preservando o comprimento médio das leituras. O mapeamento pelo Salmon apresentou altas taxas de eficiência de alinhamento (maiores que 80%) , confirmando a adequação do transcriptoma de referência escolhido.
+Antes da análise estatística, a qualidade geral das amostras foi verificada. Calculamos quantos genes estavam ativos no tecido cerebral e medimos o tamanho de cada biblioteca (a quantidade total de sequências geradas por amostra). Esses dados foram retirados das tabelas já corrigidas e normalizadas pelo pipeline. 
+
+
+Número Total de Genes Detectados no Genoma: 22666 genes apresentam expressão basal detectável neste experimento.
+Taxa de Alinhamento e Quantificação: Conforme avaliado nos relatórios do MultiQC e logs do Salmon, as taxas de pseudo-alinhamento se mantiveram estáveis e elevadas em todas as amostras, confirmando a alta eficiência de mapeamento contra o transcriptoma de referência GRCm39. 
+
+#### Distribuição das Contagens por Amostra (Library Size) A tabela abaixo exibe a profundidade de sequenciamento final (em milhões de reads) por amostra após o processo de quantificação:
 
 ```{r qc_metrics, echo=FALSE}
 # 1. Calcular o número total de genes detectados
@@ -105,7 +116,7 @@ knitr::kable(top20[, c("baseMean", "log2FoldChange", "pvalue", "padj")])
 ```
 ### 3.3 Análise de Componentes Principais (PCA)
 O gráfico PCA foi gerado para examinar as semelhanças globais entre as amostras do transcriptoma.
-
+O primeiro componente principal (PC1) capturou 62% da variância global e promoveu uma separação nítida e inequívoca entre os perfis transcriptômicos dos camundongos controle (WT) e mutantes (HET). O forte agrupamento observado nas réplicas do grupo HET demonstra consistência no impacto molecular downstream decorrente da haploinsuficiência de Nr2f1 no hipocampo, confirmando que a variabilidade biológica associada ao genótipo supera eventuais ruídos técnicos de sequenciamento.
 ```{r pca_plot, echo=FALSE, fig.width=8, fig.height=7}
 plotPCA(vsd, intgroup="genotype") + 
   theme_bw() + 
@@ -113,8 +124,7 @@ plotPCA(vsd, intgroup="genotype") +
 ```
 
 ### 3.4 Volcano Plot
-O Volcano Plot ilustra a relação entre a significância estatística e a magnitude da mudança de expressão, destacando os genes alvo.
-
+O Volcano Plot revelou uma marcante assimetria no perfil de expressão diferencial do hipocampo mutante, evidenciando que a haploinsuficiência de Nr2f1 resulta majoritariamente na indução de expressão gênica (regulação positiva). Utilizando limites rígidos de p-ajustado < 0,05 e |log2FC| > 1, identificou-se uma assinatura robusta de genes estatisticamente confiáveis e com alta magnitude de efeito (destacados em vermelho), com relevância para alvos proeminentes localizados no ápice do gráfico, tais como Myo7a, Slc38a3, Pdia4 e Epn3. Podemos interpretar que a perda de um alelo do fator de transcrição Nr2f1 causou um efeito predominantemente de ativação/super-expressão no hipocampo (215 genes ativados contra apenas 6 reprimidos).
 ```{r volcano_plot, echo=FALSE, fig.width=10, fig.height=9}
 library(EnhancedVolcano)
 library(org.Mm.eg.db)
@@ -157,7 +167,8 @@ EnhancedVolcano(deg_volcano,
 
 ### 3.5 Heatmap dos Top Genes DE
 
-O mapa de calor exibe o padrão de expressão dos top 50 genes mais significativamente alterados, evidenciando o agrupamento das amostras.
+O mapa de calor exibe o padrão de expressão dos top 50 genes mais significativamente alterados, evidenciando o agrupamento das amostras. 
+Quanto mais próximo ao vermelho, maior a super-expressão (gene upregulated), enquanto que mais próximos azul maior maior sub-expressos (gene downregulated). 
 
 ```{r heatmap, echo=FALSE, fig.width=6, fig.height=8}
 # Ordenar pelo menor p-ajustado e pegar os primeiros 50
@@ -174,6 +185,8 @@ pheatmap(mat, annotation_col=as.data.frame(colData(dds)["genotype"]),
 ### 3.6 MA Plot
 
 O MA Plot projeta a mudança em log2 (*Log2 Fold Change*) no eixo Y contra a média das contagens normalizadas no eixo X. Ele permite visualizar a distribuição dos genes diferencialmente expressos em diferentes níveis de abundância basal.
+O gráfico gerado demonstra uma marcante assinatura de regulação positiva (*up-regulation*), evidenciada pela concentração massiva de pontos azuis estatisticamente significativos ($p\text{-ajustado} < 0.05$) localizados acima da linha horizontal de baseline zero. Os pequenos triângulos dispostos nas extremidades superior e inferior indicam alvos com magnitudes extremas de variação que extrapolaram os limites de escala adotados.
+A detecção de genes diferencialmente expressos estende-se de forma homogênea desde faixas moderadas de contagens médias ($10^1$) até genes altamente abundantes no transcriptoma do hipocampo ($10^4$). Isso confirma a robustez do sequenciamento e valida a eficácia do algoritmo em isolar variações biológicas reais do ruído de amostragem inerente a genes de baixa expressão. 
 
 ```{r ma_plot, echo=FALSE, fig.width=7, fig.height=5}
 plotMA(results(dds), ylim=c(-5,5), main="MA Plot: HET vs WT (Nr2f1)")
