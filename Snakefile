@@ -229,6 +229,6 @@ rule generate_report:
         html = "results/plots/RELATORIO_FINAL.html"
     conda:
         "envs/rnaseq.yaml"
-    rmarkdown:
-        "relatorio.Rmd"
+    script:
+        "scripts/render_report.R"
 
