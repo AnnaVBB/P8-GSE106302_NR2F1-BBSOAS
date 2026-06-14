@@ -25,6 +25,7 @@ resOrdered <- res[order(res$padj), ]
 
 # Converter em dataframe e salvar em formato CSV
 resData <- as.data.frame(resOrdered)
+dir.create("results/deseq2", showWarnings = FALSE, recursive = TRUE)
 write.csv(resData, "results/deseq2/DEG_results.csv", row.names = TRUE)
 saveRDS(dds, "results/deseq2/dds_object.rds")
 
