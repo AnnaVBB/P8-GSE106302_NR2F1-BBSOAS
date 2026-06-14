@@ -38,7 +38,7 @@ dependencies:
   - bioconductor-sparsearray=1.10.8
   - bioconductor-summarizedexperiment=1.40.0
   - bioconductor-txdbmaker=1.6.2
-  - bioconductor-tximport
+  - bioconductor-tximport=1.30.0
   - bioconductor-ucsc.utils=1.6.1
   - bioconductor-xvector=0.50.0
   - bwidget=1.10.1
