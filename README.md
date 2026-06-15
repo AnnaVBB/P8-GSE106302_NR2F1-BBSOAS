@@ -30,7 +30,7 @@ O fluxo de trabalho foi construído utilizando a ferramenta de gerência de flux
 ```
 ## 🟣 Como visualizar os resultados?
 Para analisar a discussão científica, as tabelas de impacto clínico e as figuras geradas (PCA, Volcano Plot, Heatmap e GSEA), você não precisa instalar nada:
-*   Acesse [clique aqui para acessar o RELATORIO_FINAL.html](https://github.io)
+*   Acesse [clique aqui para acessar o RELATORIO_FINAL.html](https:index.html//github.io)
    
 ## 🟣 Como Reproduzir este Projeto
 
