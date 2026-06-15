@@ -30,7 +30,7 @@ O fluxo de trabalho foi construído utilizando a ferramenta de gerência de flux
 ```
 ## 🟣 Como visualizar os resultados?
 Para analisar a discussão científica, as tabelas de impacto clínico e as figuras geradas (PCA, Volcano Plot, Heatmap e GSEA), você não precisa instalar nada:
-*   Acesse [clique aqui para acessar o RELATORIO_FINAL.html](https://annavbb.github.io/P8-GSE106302_NR2F1-BBSOAS/)
+*   Acesse [clique aqui para acessar o RELATORIO_FINAL.html](https://annavbb.github.io/P8-GSE106302_NR2F1-BBSOAS/index.html)
    
 ## 🟣 Como Reproduzir este Projeto
 
