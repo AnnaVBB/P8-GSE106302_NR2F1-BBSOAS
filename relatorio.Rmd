@@ -308,6 +308,7 @@ gene_list <- deg[,"log2FoldChange"]
 names(gene_list) <- rownames(deg)
 gene_list <- sort(gene_list, decreasing = TRUE)
 
+set.seed(42)
 # 2. CORREÇÃO: Aumentamos o cutoff para 0.1 para capturar as vias reprimidas (Down)
 gsea_res <- gseGO(
     geneList      = gene_list,
@@ -352,8 +353,15 @@ if (nrow(gsea_res) > 0) {
 }
 ```
 
-Com o Nr2F1 mutado, ocorre uma desconexão biológica. O hipocampo mutado sofre um conflito estrutural severo, enquanto vias envolvidas em processos de montagem de cílios, organização de microtúbulos e desenvolvimento neuronal são super-expressas (upregulated), o transporte intraciliar anterógrado é subexpresso (downregulated) comprometendo o funcionamento dos cílios primários.<br>
-Ou seja, **embora a célula tente construir a estrutura ciliar, ela falha em manter sua funcionalidade**. 
+Com o gene Nr2f1 mutado, o hipocampo apresenta uma resposta marcante de ativação 
+transcricional. A análise de GSEA revelou que a haploinsuficiência gera um impacto 
+predominantemente positivo (Upregulated) em processos essenciais de desenvolvimento, 
+destacando-se o enriquecimento coordenado de vias de regionalização tecidual 
+(regionalization), montagem de cílios (axoneme assembly, cilium assembly) e organização 
+de microtúbulos (microtubule bundle formation). Esse aumento coordenado sugere que a 
+perda do fator de transcrição Nr2f1 desencadeia um forte gatilho compensatório ou um 
+ruído de super-expressão estrutural, forçando a célula a tentar remodelar ativamente 
+sua arquitetura física e suas antenas ciliares durante o desenvolvimento na Síndrome de BBSOAS.
 
 <br> 
 
@@ -397,12 +405,11 @@ Myo7a codifica uma proteína motora envolvida na organização do citoesqueleto 
 Em conjunto, esses achados reforçam os resultados de GO e KEGG, indicando que a perda de Nr2f1 afeta principalmente mecanismos relacionados à arquitetura celular, dinâmica ciliar e comunicação celular, processos fundamentais para o desenvolvimento e funcionamento adequado dos neurônios hipocampais.<br> 
 
 ### 4.2 Interpretação Biológica e Correlação Clínica
-A análise de enriquecimento funcional revelou que a haploinsuficiência de Nr2f1 afeta principalmente processos relacionados à organização estrutural e à sinalização celular no hipocampo. As vias de Ontologia Gênica (GO) enriquecidas estão associadas à montagem de cílios, organização de microtúbulos, formação do axonema e motilidade ciliar, indicando que a perda de Nr2f1 provoca alterações em mecanismos fundamentais para a arquitetura celular e para o desenvolvimento do sistema nervoso. <br> 
-As análises de KEGG complementam esses achados ao demonstrar alterações em vias relacionadas ao citoesqueleto, à interação com a matriz extracelular e à sinalização celular. Em conjunto, esses processos são responsáveis por manter a forma celular, permitir a comunicação entre células e coordenar respostas a sinais extracelulares necessários para a maturação e o funcionamento dos neurônios. <br> 
-Um aspecto particularmente relevante foi a presença simultânea de vias upregulated e downregulated associadas à biologia ciliar. As vias superexpressas incluem processos de montagem de cílios, organização de microtúbulos e desenvolvimento neuronal, sugerindo uma tentativa compensatória das células em reconstruir ou reforçar estruturas essenciais comprometidas pela perda de Nr2f1. Em contraste, a redução da expressão de genes envolvidos no transporte intraciliar anterógrado indica que, apesar do aumento da construção estrutural dos cílios, mecanismos indispensáveis para sua funcionalidade permanecem prejudicados. <br> 
-Essa aparente contradição sugere que o hipocampo mutante tenta restaurar a arquitetura física dos cílios e do citoesqueleto, mas não consegue manter plenamente os processos necessários para seu funcionamento. Como os cílios primários atuam como centros de recepção e transdução de sinais celulares, sua disfunção compromete vias que regulam neurogênese, diferenciação neuronal, plasticidade sináptica e organização dos circuitos hipocampais. <br> 
-Dessa forma, os resultados fornecem uma explicação molecular plausível para os déficits cognitivos, alterações de memória, atraso do neurodesenvolvimento e comprometimento visual observados na síndrome de Bosch-Boonstra-Schaaf (BBSOAS).
-
+A análise de enriquecimento funcional revelou que a haploinsuficiência de Nr2f1 afeta principalmente processos relacionados à organização estrutural e à sinalização celular no hipocampo. As vias de Ontologia Gênica (GO) enriquecidas estão associadas à montagem de cílios, organização de microtúbulos, formação do axonema e motilidade ciliar, indicando que a perda de Nr2f1 provoca alterações em mecanismos fundamentais para a arquitetura celular e para o desenvolvimento do sistema nervoso. <br>
+As análises de KEGG complementam esses achados ao demonstrar alterações em vias relacionadas ao citoesqueleto, à interação com a matriz extracelular (ECM-receptor interaction, integrin signaling) e à sinalização celular (Hippo signaling). Em conjunto, esses processos são responsáveis por manter a forma celular, permitir a comunicação entre células e coordenar respostas a sinais extracelulares necessários para a maturação e o funcionamento dos neurônios. <br>
+Um aspecto central revelado pela Análise de Enriquecimento de Conjunto de Genes (GSEA) por NES foi a marcante regulação positiva (*upregulated*) coordenada de processos biológicos críticos para o neurodesenvolvimento. Observou-se a ativação paralela de programas de regionalização tecidual (*regionalization*), reparo de danos ao DNA (*single strand break repair*), montagem de cílios (*axoneme assembly*, *cilium assembly*) e organização do citoesqueleto (*microtubule bundle formation*). Esse aumento generalizado de expressão sugere que a perda de um alelo de Nr2f1 engatilha uma forte resposta compensatória ou um ruído transcricional hiperativo, forçando a célula a remodelar intensamente sua arquitetura física e suas antenas celulares.<br>
+Essa super-expressão desordenada sugere que o hipocampo mutante sofre um estresse de desenvolvimento que altera os padrões de posicionamento e integridade das células. Como os cílios primários e a matriz extracelular atuam como centros críticos de recepção e transdução de sinais de plasticidade, a sua desregulação estrutural maciça compromete vias que coordenam a neurogênese, a diferenciação neuronal e a correta organização dos circuitos hipocampais. <br>
+Dessa forma, a hiperativação compensatória e caótica dessas cascatas moleculares fornece uma explicação plausível para a desorganização tecidual que culmina nos déficits cognitivos, alterações de memória, atraso do neurodesenvolvimento e comprometimento visual característicos do quadro clínico dos pacientes com a Síndrome de Bosch-Boonstra-Schaaf (BBSOAS).<br>
 <br>
 
 ## 5. Referências
