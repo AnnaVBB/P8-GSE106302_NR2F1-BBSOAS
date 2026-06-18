@@ -4,18 +4,25 @@
 import pandas as pd
 configfile: "config.yaml"
 
-
 samples = pd.read_csv(
     "samples.tsv",
     sep="\t"
 )
 
 SAMPLES = samples["sample_id"].tolist()
+
+FASTA_URL = config["reference"]["fasta"]
+GTF_URL = config["reference"]["gtf"]
+
+TRANSCRIPTOME = "reference/transcriptome.fa"
+ANNOTATION = "reference/annotation.gtf"
+TX2GENE = "reference/tx2gene.csv"
 #########################################
 # P8-GSE106302 - RNA-seq Nr2f1/BBSOAS
 #########################################
 rule all:
     input:
+        "reference/salmon_index", 
         # Execução do QC inicial e final
         "results/fastqc/multiqc_report.html",
         "results/fastqc/trimmed/multiqc_trimmed_report.html",
@@ -27,15 +34,81 @@ rule all:
         # Enriquecimento funcional
         "results/enrichment/GO_results.csv",
         "results/enrichment/KEGG_results.csv",
-    # Relatório final
+        # Relatório final
         "results/plots/RELATORIO_FINAL.html"
 
 ########################################
 # REFERÊNCIA
 #########################################
+# DOWNLOAD DAS REFERÊNCIAS
+# Baixar os arquivos de referência do transcriptoma (.fa)
+rule download_transcriptome:
+    output:
+        "reference/transcriptome.fa.gz"
+
+    shell:
+        """
+        mkdir -p reference
+
+        wget \
+            -O {output} \
+            {FASTA_URL}
+        """
+
+rule decompress_transcriptome:
+    input:
+        "reference/transcriptome.fa.gz"
+
+    output:
+        TRANSCRIPTOME
+
+    shell:
+        """
+        gunzip -c {input} > {output}
+        """
+
+# Baixar anotação dos genes (.gtf)
+rule download_gtf:
+    output:
+        "reference/annotation.gtf.gz"
+
+    shell:
+        """
+        wget \
+            -O {output} \
+            {GTF_URL}
+        """
+
+
+rule decompress_gtf:
+    input:
+        "reference/annotation.gtf.gz"
+
+    output:
+        ANNOTATION
+
+    shell:
+        """
+        gunzip -c {input} > {output}
+        """
+########################################
+# TX2GENE
+rule generate_tx2gene:
+    input:
+        ANNOTATION
+
+    output:
+        TX2GENE
+
+    conda:
+        "envs/rnaseq.yaml"
+
+    script:
+        "scripts/generate_tx2gene.R"
+#####################################
 rule salmon_index:
     input:
-        "reference/transcriptome.fa"
+        fasta=TRANSCRIPTOME
     output:
         directory("reference/salmon_index")
     conda:
@@ -45,7 +118,7 @@ rule salmon_index:
     shell:
         """
         salmon index \
-            -t {input} \
+            -t {input.fasta} \
             -i {output} \
             -p {threads}
         """
@@ -179,7 +252,7 @@ rule salmon_quant:
 rule tximport:
     input:
         sf = expand("results/salmon/{sample}/quant.sf", sample=SAMPLES),
-        tx2gene = "reference/tx2gene.csv",
+        tx2gene = TX2GENE,
         samples = "samples.tsv"
     output:
         txt = "results/deseq2/tximport_complete.txt",
